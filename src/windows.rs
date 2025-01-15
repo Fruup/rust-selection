@@ -113,20 +113,41 @@ fn copy() -> bool {
     };
     let num_before = unsafe { GetClipboardSequenceNumber() };
 
-    let mut enigo = Enigo::new(&Settings::default()).unwrap();
-    enigo.key(Key::Control, Release).unwrap();
-    enigo.key(Key::Alt, Release).unwrap();
-    enigo.key(Key::Shift, Release).unwrap();
-    enigo.key(Key::Space, Release).unwrap();
-    enigo.key(Key::Meta, Release).unwrap();
-    enigo.key(Key::Tab, Release).unwrap();
-    enigo.key(Key::Escape, Release).unwrap();
-    enigo.key(Key::CapsLock, Release).unwrap();
-    enigo.key(Key::C, Release).unwrap();
-    enigo.key(Key::Control, Press).unwrap();
-    enigo.key(Key::C, Click).unwrap();
-    enigo.key(Key::Control, Release).unwrap();
+    let mut enigo = match Enigo::new(&Settings::default()) {
+        Ok(enigo) => enigo,
+        Err(err) => {
+            error!("Enigo error: {}", err);
+            return false;
+        }
+    };
+
+    macro_rules! key {
+        ($k:expr, $direction:expr) => {
+            match enigo.key($k, $direction) {
+                Ok(_) => {}
+                Err(err) => {
+                    error!("Enigo error: {}", err);
+                    return false;
+                }
+            };
+        };
+    }
+
+    key!(Key::Control, Release);
+    key!(Key::Alt, Release);
+    key!(Key::Shift, Release);
+    key!(Key::Space, Release);
+    key!(Key::Meta, Release);
+    key!(Key::Tab, Release);
+    key!(Key::Escape, Release);
+    key!(Key::CapsLock, Release);
+    key!(Key::C, Release);
+    key!(Key::Control, Press);
+    key!(Key::C, Click);
+    key!(Key::Control, Release);
+
     std::thread::sleep(std::time::Duration::from_millis(100));
+
     let num_after = unsafe { GetClipboardSequenceNumber() };
     num_after != num_before
 }
