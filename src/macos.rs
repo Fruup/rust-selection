@@ -1,5 +1,6 @@
 use accessibility_ng::{AXAttribute, AXUIElement};
 use accessibility_sys_ng::{kAXFocusedUIElementAttribute, kAXSelectedTextAttribute};
+use arboard::Clipboard;
 use core_foundation::string::CFString;
 use log::{error, info};
 use std::error::Error;
@@ -66,54 +67,83 @@ fn get_selected_text_by_ax() -> Result<String, Box<dyn Error>> {
     Ok(selected_text.to_string())
 }
 
+// Available for almost all applications
 fn get_text_by_clipboard() -> Result<String, Box<dyn Error>> {
-    let output = std::process::Command::new("osascript")
-        .arg("-e")
-        .arg(APPLE_SCRIPT)
-        .output()?;
-    // check exit code
-    if output.status.success() {
-        // get output content
-        let content = String::from_utf8(output.stdout)?;
-        Ok(content)
+    // Read Old Clipboard
+    let old_clipboard = (Clipboard::new()?.get_text(), Clipboard::new()?.get_image());
+
+    if copy() {
+        // Read New Clipboard
+        let new_text = Clipboard::new()?.get_text();
+
+        // Create Write Clipboard
+        let mut write_clipboard = Clipboard::new()?;
+
+        match old_clipboard {
+            (Ok(text), _) => {
+                // Old Clipboard is Text
+                write_clipboard.set_text(text)?;
+                if let Ok(new) = new_text {
+                    Ok(new.trim().to_string())
+                } else {
+                    Err("New clipboard is not Text".into())
+                }
+            }
+            (_, Ok(image)) => {
+                // Old Clipboard is Image
+                write_clipboard.set_image(image)?;
+                if let Ok(new) = new_text {
+                    Ok(new.trim().to_string())
+                } else {
+                    Err("New clipboard is not Text".into())
+                }
+            }
+            _ => {
+                // Old Clipboard is Empty
+                write_clipboard.clear()?;
+                if let Ok(new) = new_text {
+                    Ok(new.trim().to_string())
+                } else {
+                    Err("New clipboard is not Text".into())
+                }
+            }
+        }
     } else {
-        Err(format!("{output:?}").into())
+        Err("Copy Failed".into())
     }
 }
 
-const APPLE_SCRIPT: &str = r#"
-use AppleScript version "2.4"
-use scripting additions
-use framework "Foundation"
-use framework "AppKit"
+fn copy() -> bool {
+    use enigo::{
+        Direction::{Click, Press, Release},
+        Enigo, Key, Keyboard, Settings,
+    };
 
-set savedAlertVolume to alert volume of (get volume settings)
+    let mut enigo = Enigo::new(&Settings {
+        // independent_of_keyboard_state: false,
+        // release_keys_when_dropped: false,
+        ..Settings::default()
+    })
+    .unwrap();
 
--- Back up clipboard contents:
-set savedClipboard to the clipboard
+    macro_rules! key {
+        ($k:expr, $direction:expr) => {
+            match enigo.key($k, $direction) {
+                Ok(_) => {}
+                Err(err) => {
+                    error!("Enigo error: {}", err);
+                    return false;
+                }
+            };
+        };
+    }
 
-set thePasteboard to current application's NSPasteboard's generalPasteboard()
-set theCount to thePasteboard's changeCount()
+    key!(Key::Unicode('c'), Release);
+    key!(Key::Meta, Press);
+    key!(Key::Unicode('c'), Click);
+    key!(Key::Meta, Release);
 
-tell application "System Events"
-    set volume alert volume 0
-end tell
+    std::thread::sleep(std::time::Duration::from_millis(100));
 
--- Copy selected text to clipboard:
-tell application "System Events" to keystroke "c" using {command down}
-delay 0.1 -- Without this, the clipboard may have stale data.
-
-tell application "System Events"
-    set volume alert volume savedAlertVolume
-end tell
-
-if thePasteboard's changeCount() is theCount then
-    return ""
-end if
-
-set theSelectedText to the clipboard
-
-set the clipboard to savedClipboard
-
-theSelectedText
-"#;
+    true
+}

@@ -13,6 +13,7 @@ edition = "2021"
 
 [dependencies]
 log = "0.4"
+enigo = { git = "https://github.com/enigo-rs/enigo", rev = "16c7611e88d14313dbe08921d36443dcd17aa283" }
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.59.0", features = [
@@ -24,7 +25,6 @@ windows = { version = "0.59.0", features = [
 	"Win32_UI_Accessibility",
 	"Win32_System_Com",
 ] }
-enigo = "0.3.0"
 arboard = "3.4.0"
 
 [target.'cfg(target_os = "linux")'.dependencies]
@@ -35,3 +35,4 @@ wl-clipboard-rs = "0.9.1"
 core-foundation = "0.9.4"
 accessibility-ng = "0.1.6"
 accessibility-sys-ng = "0.1.3"
+arboard = "3.4.0"
