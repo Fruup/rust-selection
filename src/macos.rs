@@ -119,12 +119,13 @@ fn copy() -> bool {
         Enigo, Key, Keyboard, Settings,
     };
 
-    let mut enigo = Enigo::new(&Settings {
-        // independent_of_keyboard_state: false,
-        // release_keys_when_dropped: false,
-        ..Settings::default()
-    })
-    .unwrap();
+    let mut enigo = match Enigo::new(&Settings::default()) {
+        Ok(enigo) => enigo,
+        Err(err) => {
+            error!("[enigo] Error: {}", err);
+            return false;
+        }
+    };
 
     macro_rules! key {
         ($k:expr, $direction:expr) => {
